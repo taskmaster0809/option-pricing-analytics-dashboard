@@ -59,7 +59,7 @@ class EuropeanOption:
         }
         return result_dict
 
-    def monte_carlo_price(self, N): # Under Geometric Brownian Motion assumption
+    def monte_carlo_price(self, N=1000): # Under Geometric Brownian Motion assumption
         # Random Normal Variates
         rng = np.random.default_rng()
         pos_z = rng.normal(0, 1, N)
@@ -69,11 +69,11 @@ class EuropeanOption:
         pos_s_t = self.S * np.exp((self.r - self.sigma**2/2) * self.T + self.sigma * np.sqrt(self.T) * pos_z)
         neg_s_t = self.S * np.exp((self.r - self.sigma**2/2) * self.T + self.sigma * np.sqrt(self.T) * neg_z)
 
-        # Using antithetic variates variance reduction technique
-        call_price = (np.exp(-self.r * self.T) *
-                      np.mean((np.maximum(pos_s_t - self.K, 0) + np.maximum(neg_s_t - self.K, 0))/2))
+        discount = np.exp(-self.r * self.T)
 
-        put_price = (np.exp(-self.r * self.T) *
-                     np.mean((np.maximum(self.K - pos_s_t, 0) + np.maximum(self.K - neg_s_t, 0))/2))
+        # Using antithetic variates variance reduction technique
+        call_price = discount * np.mean((np.maximum(pos_s_t - self.K, 0) + np.maximum(neg_s_t - self.K, 0))/2)
+        put_price = discount * np.mean((np.maximum(self.K - pos_s_t, 0) + np.maximum(self.K - neg_s_t, 0))/2)
+        
         return call_price, put_price
 

@@ -3,6 +3,8 @@ from datetime import datetime as dt
 import yfinance as yf
 from scipy.optimize import brentq
 import numpy as np
+import pandas as pd
+import plotly.express as px
 
 from pricing.black_scholes import EuropeanOption
 
@@ -56,7 +58,13 @@ def helper(implied_vol, row):
 strike_vol = []
 for _, data_row in calls.iterrows():
     try:
-        imp_vol = brentq(f=helper, a=1e-9, b=5, args=(data_row, ))
+        imp_vol = brentq(f=helper, a=1e-9, b=5, args=(data_row, )) # Solve for root of helper
         strike_vol.append((data_row.strike, imp_vol))
     except ValueError:
         strike_vol.append((data_row.strike, np.nan)) # When no solution exists
+
+strike_vol_df = pd.DataFrame(strike_vol, columns=["strike", "implied_vol"])
+strike_vol_df = strike_vol_df.dropna().reset_index(drop=True)
+
+plot = px.line(data_frame=strike_vol_df, x="strike", y="implied_vol")
+plot.show()
