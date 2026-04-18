@@ -17,9 +17,9 @@ class MarketData:
         # Spot price of underlying: S in Black Scholes model
         self.spot = self.ticker.history(period="1d")["Close"].iloc[-1]
 
-        tnx = yf.Ticker("^IRX")
+        irx = yf.Ticker("^IRX")
         # US 13 Week Treasury Bill: r in the Black Scholes model
-        self.interest_rate = tnx.history(period="1d")["Close"].iloc[-1] / 100
+        self.interest_rate = irx.history(period="1d")["Close"].iloc[-1] / 100
 
     def get_calls(self, date: str):
         if date not in self.expiries:
@@ -36,9 +36,11 @@ class MarketData:
         if len(zero_bid_ask) >= 0.5 * len(calls):
             calls["marketPrice"] = calls["lastPrice"]  # Set last price as the market price in case of illiquid options
         else:
+            calls = calls[ (calls["ask"] > 0) & (calls["bid"] > 0) ]
             calls["marketPrice"] = calls["ask"].add(calls["bid"])/2  # Otherwise set them to ask-bid midpoint
 
         # Cleaning data
         calls = calls[calls["marketPrice"] > 0]
         calls = calls.dropna(subset=["marketPrice"])
+        calls.reset_index(drop=True, inplace=True)
         return calls[["strike", "marketPrice"]]

@@ -3,12 +3,9 @@ from datetime import datetime as dt
 from scipy.optimize import brentq
 import numpy as np
 import pandas as pd
-# import plotly.express as px
 
 from pricing.black_scholes import EuropeanOption
 from data.market_data import MarketData
-
-ticker = "SPY"
 
 
 def get_strike_vol_df(market_data: MarketData):
@@ -32,9 +29,8 @@ def get_strike_vol_df(market_data: MarketData):
                 imp_vol = brentq(f=helper, a=1e-9, b=5, args=(data_row, time_to_expiry)) # Solve for root of helper
                 strike_vol.append((data_row.strike, imp_vol, time_to_expiry))
             except ValueError:
-                strike_vol.append((data_row.strike, np.nan, time_to_expiry)) # When no solution exists
+                strike_vol.append((data_row.strike, np.nan, time_to_expiry))             # When no solution exists
 
     strike_vol_df = pd.DataFrame(strike_vol, columns=["strike", "implied_vol", "time_to_expiry"])
     strike_vol_df = strike_vol_df.dropna().reset_index(drop=True)
     return strike_vol_df
-
