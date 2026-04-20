@@ -50,8 +50,9 @@ app.layout = dbc.Container([
 
     dbc.Spinner(
         html.Div(
-            dcc.Dropdown(id="expiry-dates-dropdown", placeholder="Select an expiry date", style={"color": "black"}),
-            id="expiry-section", style=HIDE_STYLE, className="mt-5"
+            dcc.Dropdown(id="expiry-dates-dropdown", placeholder="Select an expiry date",
+                         style={"color": "black"}),
+            id="expiry-section", style=HIDE_STYLE, className="mt-5 mb-5"
         )
     ),
 
@@ -59,7 +60,7 @@ app.layout = dbc.Container([
         html.Div(children=[
             dbc.Row(
                 dbc.RadioItems(options=["Underlying", "Volatility Smile", "Volatility Surface"],
-                               value="Volatility Smile", inline=True, id="graph-radio-items", className="mt-5 gap-5",
+                               value="Volatility Smile", inline=True, id="graph-radio-items", className="gap-5",
                                style={"display": "flex", "justifyContent": "center"}),
             ),
             dbc.Row(
@@ -115,20 +116,22 @@ def toggle_graph_area(_, expiry_value, figure, symbol, slider_value):
 
     if expiry_value:
         my_df = market_vol_df_store(symbol)
+        pivot_df = my_df.pivot(index="strike", columns="time_to_expiry", values="implied_vol")
+        pivot_df = pivot_df.interpolate(axis=0).interpolate(axis=1)
+
         market_data = get_market_data(symbol)
+        ticker_history = market_data.ticker.history(period="1y")
+
         time_to_expiry = (dt.strptime(expiry_value, "%Y-%m-%d") - market_data.today).days / 365.25
+        my_df_expiry = my_df[my_df["time_to_expiry"] == time_to_expiry]
 
         if figure == "Volatility Surface":
-            pivot_df = my_df.pivot(index="strike", columns="time_to_expiry", values="implied_vol")
-            pivot_df = pivot_df.interpolate(axis=0).interpolate(axis=1)
             fig = go.Figure(data=go.Surface(z=pivot_df.values, x=pivot_df.columns, y=pivot_df.index))
 
         elif figure == "Volatility Smile":
-            my_df_expiry = my_df[my_df["time_to_expiry"] == time_to_expiry]
             fig = px.line(data_frame=my_df_expiry, x="strike", y="implied_vol")
 
         else:
-            ticker_history = market_data.ticker.history(period="1y")
             fig = go.Figure(go.Candlestick(
                 x=ticker_history.index,
                 open=ticker_history['Open'],
