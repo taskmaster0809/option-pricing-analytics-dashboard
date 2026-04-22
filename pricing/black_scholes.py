@@ -43,18 +43,18 @@ class EuropeanOption:
 
         result_dict = {
             "call": {
-                "delta": delta_call,
-                "gamma": gamma,
-                "vega": vega,
-                "rho": rho_call,
-                "theta": theta_call,
+                "Delta": delta_call,
+                "Gamma": gamma,
+                "Vega": vega,
+                "Rho": rho_call,
+                "Theta": theta_call,
             },
             "put": {
-                "delta": delta_put,
-                "gamma": gamma,
-                "vega": vega,
-                "rho": rho_put,
-                "theta": theta_put,
+                "Delta": delta_put,
+                "Gamma": gamma,
+                "Vega": vega,
+                "Rho": rho_put,
+                "Theta": theta_put,
             }
         }
         return result_dict

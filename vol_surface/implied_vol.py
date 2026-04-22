@@ -8,6 +8,10 @@ from pricing.black_scholes import EuropeanOption
 from data.market_data import MarketData
 
 
+def get_day_diff(date: str, md: MarketData) -> float:
+    return (dt.strptime(date,"%Y-%m-%d") - md.today).days / 365.25
+
+
 def get_strike_vol_df(market_data: MarketData):
     """
     Takes a MarketData object and returns a dataframe containing strike and implied volatility for various expiry dates
@@ -20,7 +24,7 @@ def get_strike_vol_df(market_data: MarketData):
     strike_vol = []
     for date in market_data.expiries:
         # Time to expiry in years: T in Black Scholes Model
-        time_to_expiry = (dt.strptime(date,"%Y-%m-%d") - market_data.today).days / 365.25
+        time_to_expiry = get_day_diff(date, market_data)
 
         calls = market_data.get_calls(date)
 
@@ -31,6 +35,9 @@ def get_strike_vol_df(market_data: MarketData):
             except ValueError:
                 strike_vol.append((data_row.strike, np.nan, time_to_expiry))             # When no solution exists
 
+    currency = market_data.metadata["currency"]
     strike_vol_df = pd.DataFrame(strike_vol, columns=["strike", "implied_vol", "time_to_expiry"])
     strike_vol_df = strike_vol_df.dropna().reset_index(drop=True)
+    strike_vol_df["strike_with_currency"] = strike_vol_df["strike"].apply(
+        lambda x: f"{currency} {int(x) if x == int(x) else x}")
     return strike_vol_df

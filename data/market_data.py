@@ -21,6 +21,8 @@ class MarketData:
         # US 13 Week Treasury Bill: r in the Black Scholes model
         self.interest_rate = irx.history(period="1d")["Close"].iloc[-1] / 100
 
+        self.metadata = self.ticker.get_history_metadata()
+
     def get_calls(self, date: str):
         if date not in self.expiries:
             raise ValueError("Date must be in the list of expiries")
