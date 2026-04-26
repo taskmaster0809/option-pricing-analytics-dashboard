@@ -13,9 +13,30 @@ def create_greeks_table(option: EuropeanOption) -> dag.AgGrid:
     data = pd.DataFrame(data={"Greeks": GREEKS, "Call": calls, "Put": puts})
 
     table = dag.AgGrid(
-        columnDefs=[{"field": "Greeks"}, {"field": "Call"}, {"field": "Put"}],
+        columnDefs=[
+            {"field": "Greeks", "headerName": "Greek"},
+            {"field": "Call"},
+            {"field": "Put"}
+        ],
         rowData=data.to_dict("records"),
-        dashGridOptions={"theme": "themeAlpine"},
+
+        defaultColDef={
+            "cellStyle": {"fontSize": "16px"},
+            "headerStyle": {"fontSize": "23px", "fontWeight": "bold"}
+        },
+
+        dashGridOptions={
+            "domLayout": "autoHeight",
+            "theme": "legacy"
+        },
+
+        columnSize="sizeToFit",
+        style={
+            "margin": "auto",
+            "borderRadius": "10px",
+            "overflow": "hidden"
+        },
+        className="ag-theme-alpine-dark"
     )
 
     return table

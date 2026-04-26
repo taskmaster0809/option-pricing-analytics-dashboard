@@ -31,12 +31,12 @@ def get_strike_vol_df(market_data: MarketData):
         for _, data_row in calls.iterrows():
             try:
                 imp_vol = brentq(f=helper, a=1e-9, b=5, args=(data_row, time_to_expiry)) # Solve for root of helper
-                strike_vol.append((data_row.strike, imp_vol, time_to_expiry))
+                strike_vol.append((data_row.strike, imp_vol, time_to_expiry, date))
             except ValueError:
-                strike_vol.append((data_row.strike, np.nan, time_to_expiry))             # When no solution exists
+                strike_vol.append((data_row.strike, np.nan, time_to_expiry, date))             # When no solution exists
 
     currency = market_data.metadata["currency"]
-    strike_vol_df = pd.DataFrame(strike_vol, columns=["strike", "implied_vol", "time_to_expiry"])
+    strike_vol_df = pd.DataFrame(strike_vol, columns=["strike", "implied_vol", "time_to_expiry", "date"])
     strike_vol_df = strike_vol_df.dropna().reset_index(drop=True)
     strike_vol_df["strike_with_currency"] = strike_vol_df["strike"].apply(
         lambda x: f"{currency} {int(x) if x == int(x) else x}")

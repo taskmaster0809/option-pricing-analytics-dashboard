@@ -4,6 +4,7 @@ from dash import Dash, html, dcc, callback, Output, Input, State, no_update, ctx
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import plotly.express as px
+import dash_ag_grid as dag
 
 from data.market_data import MarketData
 from vol_surface.implied_vol import get_strike_vol_df, get_day_diff
@@ -13,7 +14,19 @@ from greeks_table import GREEKS, create_greeks_table
 HIDE_STYLE = {"display": "none"}
 VISIBLE_STYLE = {"display": "block"}
 
-app = Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
+
+def custom_error_handler(_):
+    return no_update, HIDE_STYLE, [], None, {
+        **VISIBLE_STYLE,
+        "textAlign": "center",
+        "color": "#ff6b6b",
+        "fontSize": "1rem",
+        "opacity": "0.85",
+        "letterSpacing": "0.03em"
+    }
+
+
+app = Dash(__name__, external_stylesheets=[dbc.themes.DARKLY, dag.themes.BASE, dag.themes.ALPINE])
 
 market_data_cache = {}
 strike_vol_df_cache = {}
@@ -34,7 +47,7 @@ def get_market_vol_df(symbol) -> pd.DataFrame:  # Used to store the implied vol 
 
 # Get greeks and strikes data
 def get_strike_greek_df(symbol, expiry_date, strikes) -> pd.DataFrame:
-    if (symbol, expiry_date) not in strike_greek_df_cache:
+    if (symbol, expiry_date, tuple(strikes)) not in strike_greek_df_cache:
         columns = ["Delta Call", "Delta Put", "Gamma", "Vega", "Rho Call", "Rho Put", "Theta Call", "Theta Put"]
         market_data = get_market_data(symbol)
         time_to_expiry = get_day_diff(expiry_date, market_data)
@@ -44,8 +57,9 @@ def get_strike_greek_df(symbol, expiry_date, strikes) -> pd.DataFrame:
         for strike in strikes:
             option = get_option(symbol, market_data, time_to_expiry, strike)
             greek_values = []
-            call_options = option.greeks()["call"]
-            put_options = option.greeks()["put"]
+            greeks = option.greeks()
+            call_options = greeks["call"]
+            put_options = greeks["put"]
 
             for column in columns:
                 if "Call" in column:
@@ -57,9 +71,9 @@ def get_strike_greek_df(symbol, expiry_date, strikes) -> pd.DataFrame:
 
             strike_greek_df.loc[strike] = greek_values
 
-        strike_greek_df_cache[(symbol, expiry_date)] = strike_greek_df
+        strike_greek_df_cache[(symbol, expiry_date, tuple(strikes))] = strike_greek_df
 
-    return strike_greek_df_cache[(symbol, expiry_date)]
+    return strike_greek_df_cache[(symbol, expiry_date, tuple(strikes))]
 
 
 def get_option(symbol:str, market_data: MarketData, time_to_expiry: float, strike: float) -> EuropeanOption:
@@ -76,23 +90,45 @@ def get_option(symbol:str, market_data: MarketData, time_to_expiry: float, strik
 # App layout
 app.layout = dbc.Container([
     # Search bar and search functionality
-    html.H1(children="My App", style={"textAlign": "center", "color": "cyan"}, className="mt-4"),
+    html.H1(children="VolatilityLens", style={
+        "textAlign": "center",
+        "color": "cyan",
+        "fontSize": "3.5rem",
+        "fontWeight": "700",
+        "letterSpacing": "0.1em",
+        "textTransform": "uppercase",
+        "textShadow": "0 0 20px rgba(0, 255, 255, 0.4)"
+    }, className="mt-4"),
 
     html.Div(children=[
+
+        dbc.Row(
+            html.P(children=["Enter US based option chain symbol as in ",
+                             html.A("Yahoo Finance", href="https://finance.yahoo.com/", target="_blank")]),
+            className="mt-3"
+        ),
+
         dbc.Row(
             dbc.Input(placeholder="Search Option Chain, e.g., SPY",
                               type="search",
                               style={"color": "black", "width": "100%"},
-                              className="mt-3",
                               id="ticker-input"),
             className="d-flex justify-content-center"
         ),
         dbc.Row(
             dcc.Button(children="Search", style={"width": "20%"}, className="mt-2", id="search-button", n_clicks=0),
-            className="d-flex justify-content-end")
-    ], className="mt-3"),
+            className="d-flex justify-content-end"
+        )
+    ]),
 
     dcc.Store(id="market-data"),
+
+    dbc.Row(
+        html.P(["Oops! Could not find the option chain you were looking for :( Try visiting ",
+                html.A("Yahoo Finance", href="https://finance.yahoo.com/", target="_blank"),
+                " and see if option chains are available for this ticker"], style=HIDE_STYLE, id="error-message"),
+        className="mt-4"
+    ),
 
     dbc.Spinner(
         html.Div(
@@ -116,12 +152,17 @@ app.layout = dbc.Container([
                     id='toggle-rangeslider',
                     options=[{'label': 'Include Rangeslider',
                               'value': 'slider'}],
-                    value=['slider']
+                    value=[]
                 ), className="mt-3"
             ),
 
             dbc.Row(
-                dcc.Graph(id="graph-final", style={"display": "flex", "justifyContent": "center"}, className="mb-3")
+                dcc.Graph(id="graph-final", style={"width": "100%", "display": "flex", "justifyContent": "center"},
+                          className="mb-3")
+            ),
+
+            dbc.Row(
+                html.P("Note: The jaggedness in volatility smile/surface may represent stale data")
             ),
 
             html.Hr(),
@@ -131,7 +172,14 @@ app.layout = dbc.Container([
     # Dashboard area in a spinner
     dbc.Spinner(
         html.Div(children=[
-            html.H2(children="Greeks Dashboard", style={"textAlign": "center", "color": "cyan"}),
+            html.H2(children="Greeks Dashboard", style={
+                    "textAlign": "center",
+                    "color": "cyan",
+                    "fontSize": "1.8rem",
+                    "fontWeight": "600",
+                    "letterSpacing": "0.05em",
+                    "opacity": "0.9"
+            }),
 
             dbc.Row(
                 dcc.Dropdown(id="strike-price-dropdown", placeholder="Select a strike price",
@@ -156,14 +204,14 @@ app.layout = dbc.Container([
             ),
 
             dbc.Row(
-                dcc.Graph(id="greek-plot-figure", style={"display": "flex", "justifyContent": "center"}),
+                dcc.Graph(id="greek-plot-figure", style={"width":"100%", "display":"flex", "justifyContent": "center"}),
                 className="mb-3"
             )
 
         ], style=HIDE_STYLE, id="greeks-dashboard-div")
     )
 
-], style={"width": "60%"})
+], style={"width": "70%"})
 
 
 # Handles expiry dropdown and market data
@@ -172,17 +220,23 @@ app.layout = dbc.Container([
     Output("expiry-section", "style"),
     Output("expiry-dates-dropdown", "options"),
     Output("expiry-dates-dropdown", "value"),
+    Output("error-message", "style"),
     Input("search-button", "n_clicks"),
     State("ticker-input", "value"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
+    on_error=custom_error_handler
 )
 def show_expiries(_, state_value):
     if not state_value:
-        return no_update, HIDE_STYLE, [], None
+        return no_update, HIDE_STYLE, [], None, no_update
 
-    ticker_symbol = str(state_value).upper().strip()
-    data = get_market_data(ticker_symbol)
-    return ticker_symbol, {"width": "60%", "margin": "auto", "display": "block"}, data.expiries, None
+    symbol = str(state_value).upper().strip()
+    vol_df = get_market_vol_df(symbol)
+
+    if vol_df.empty:
+        return custom_error_handler(_)
+
+    return symbol, {"width": "60%", "margin": "auto", "display": "block"}, vol_df["date"].unique(), None, HIDE_STYLE
 
 
 # Handles graph area, graphs and radio items
@@ -207,16 +261,35 @@ def toggle_graph_area(_, expiry_date, figure, symbol, slider_value):
         pivot_df = pivot_df.interpolate(axis=0).interpolate(axis=1)
 
         market_data = get_market_data(symbol)
-        ticker_history = market_data.ticker.history(period="1y")
+        ticker_history = market_data.ticker.history(period="3mo")
 
         time_to_expiry = get_day_diff(expiry_date, market_data)
         my_df_expiry = my_df[ np.isclose(my_df["time_to_expiry"], time_to_expiry) ]
 
         if figure == "Volatility Surface":
             fig = go.Figure(data=go.Surface(z=pivot_df.values, x=pivot_df.columns, y=pivot_df.index))
+            fig.update_layout(title=f"Volatility Surface ({symbol})", title_font_size=25, hoverlabel=dict(font_size=16),
+                              autosize=True, height=600, scene=dict(
+                    xaxis_title="Time to Expiry (years)",
+                    yaxis_title=f"Strike Price ({market_data.metadata['currency']})",
+                    zaxis_title="Implied Vol"
+                )
+            )
+            fig.update_traces(hovertemplate='Strike: %{y}<br>' +
+                                            'Time to expiry (years): %{x:.4f}<br>' +
+                                            'Implied Vol: %{z}<br><extra></extra>',
+                              colorbar_title="IV"
+                              )
 
         elif figure == "Volatility Smile":
-            fig = px.line(data_frame=my_df_expiry, x="strike", y="implied_vol")
+            fig = px.line(data_frame=my_df_expiry, x="strike", y="implied_vol", height=600)
+            fig.update_layout(title=f"Volatility Smile ({symbol})",
+                              xaxis_title=f"Strike Price (in {market_data.metadata['currency']})",
+                              yaxis_title="Implied Volatility", font=dict(size=16), hoverlabel=dict(font_size=16),
+                              )
+            fig.update_traces(hovertemplate="Strike: %{x:.2f}<br>" +
+                                            "Implied Vol: %{y:.4f}"
+                              )
 
         else:
             fig = go.Figure(go.Candlestick(
@@ -227,10 +300,25 @@ def toggle_graph_area(_, expiry_date, figure, symbol, slider_value):
                 close=ticker_history['Close']
             ))
 
+            try:
+                name = market_data.metadata["longName"]
+            except KeyError:
+                name = market_data.metadata["shortName"]
+
             fig.update_layout(
-                xaxis_rangeslider_visible='slider' in slider_value
+                xaxis_rangeslider_visible='slider' in slider_value, title=name,
+                xaxis_title="Date", yaxis_title="Price", font=dict(size=16), height=600, hoverlabel=dict(font_size=16),
+                template="plotly_dark"
+            )
+            fig.update_traces(
+                increasing_line_color="cyan",
+                decreasing_line_color="red",
+                increasing_fillcolor="cyan",
+                decreasing_fillcolor="red"
             )
             return VISIBLE_STYLE, fig, {"display": "block", "color":"white"}
+
+        fig.update_layout(template="plotly_dark")
         return VISIBLE_STYLE, fig, HIDE_STYLE
     return HIDE_STYLE, no_update, HIDE_STYLE
 
@@ -308,9 +396,16 @@ def show_strike_greek_graph(symbol, expiry_date, greek, strike_value, radio_item
     strike_greek_df = get_strike_greek_df(symbol, expiry_date, strikes)
 
     if greek == "Vega" or greek == "Gamma":
-        fig = px.line(x=strikes, y=strike_greek_df[greek])
+        fig = px.line(x=strikes, y=strike_greek_df[greek], height=600)
     else:
-        fig = px.line(strike_greek_df[[greek + " Call", greek + " Put"]])
+        fig = px.line(strike_greek_df[[greek + " Call", greek + " Put"]], height=600)
+
+    fig.update_layout(title=f"{greek} ({symbol})", xaxis_title=f"Strike Price (in {market_data.metadata['currency']})",
+                      yaxis_title="Value", legend_title="", font=dict(size=16), hoverlabel=dict(font_size=16),
+                      hovermode="x", template="plotly_dark")
+    fig.update_traces(hovertemplate= "Strike: %{x:.2f}<br>" +
+                                     "Value: %{y:.4f}"
+                      )
 
     return VISIBLE_STYLE, fig
 

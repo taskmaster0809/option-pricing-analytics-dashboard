@@ -6,13 +6,7 @@ class MarketData:
     def __init__(self, ticker: str):
         self.today = dt.today()
         self.ticker = yf.Ticker(ticker)
-        expiries = self.ticker.options  # Option expiries available
-
-        self.expiries = []
-        for expiry in expiries:
-            day_diff = (dt.strptime(expiry, "%Y-%m-%d") - self.today).days
-            if 30 <= day_diff <= 180:   # Option expiry between 30 days and 180 days from now
-                self.expiries.append(expiry)
+        self.expiries = self.ticker.options  # Option expiries available
 
         # Spot price of underlying: S in Black Scholes model
         self.spot = self.ticker.history(period="1d")["Close"].iloc[-1]
