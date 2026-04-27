@@ -100,7 +100,7 @@ yfinance
 
 Option prices are computed using the closed-form Black-Scholes formula under the risk-neutral measure. The underlying is assumed to follow Geometric Brownian Motion:
 
-$$dS_t = rS_t \, dt + \sigma S_t \, dW_t$$
+$$dS_t = rS_t  dt + \sigma S_t  dW_t$$
 
 Greeks are derived analytically from the closed-form solution.
 
