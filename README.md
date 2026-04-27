@@ -112,15 +112,15 @@ For each listed option, the market price is observed and the Black-Scholes formu
 
 The terminal stock price is simulated under the risk-neutral measure:
 
-$$S_T = S_0 \exp\left(\left(r - \frac{\sigma^2}{2}\right)T + \sigma\sqrt{T}\, Z\right), \quad Z \sim \mathcal{N}(0,1)$$
+$$S_T = S_0 \exp\left(\left(r - \frac{\sigma^2}{2}\right)T + \sigma\sqrt{T} Z\right), \quad Z \sim \mathcal{N}(0,1)$$
 
-Antithetic variates are used for variance reduction — each $Z$ is paired with $-Z$ and payoffs are averaged before discounting.
+Antithetic variates are used for variance reduction where each $Z$ is paired with $-Z$ and payoffs are averaged before discounting.
 
 ---
 
 ## Known Limitations
 
-- **Data quality**: Market prices are sourced from Yahoo Finance `lastPrice`, which reflects the most recent trade and may be stale. The dashboard is most accurate during US market hours (9:30am–4pm EST). For production use, a paid real-time data feed (e.g. Polygon.io, Tradier) is recommended.
+- **Data quality**: Market prices are sourced from Yahoo Finance `lastPrice`, which reflects the most recent trade and may be stale. The dashboard is most accurate during US market hours (9:30am–4pm ET). For production use, a paid real-time data feed (e.g. Polygon.io, Tradier) is recommended.
 - **European options only**: The Black-Scholes model prices European options. American options, which can be exercised early, require different pricing methods (e.g. binomial trees, least-squares Monte Carlo).
 - **Model assumptions**: Black-Scholes assumes constant volatility and lognormally distributed returns. The volatility smile visible in the dashboard is direct evidence that these assumptions do not hold in practice. More sophisticated models (Heston, SABR) would address this.
 - **US equities only**: Options data coverage on Yahoo Finance is most reliable for US-listed equities and ETFs.
